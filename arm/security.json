@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "12172545308931118761"
+      "templateHash": "3602528820724541362"
     }
   },
   "parameters": {
@@ -362,6 +362,164 @@
       ]
     },
     {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2022-10-01",
+      "name": "[format('loganalytics{0}', parameters('location'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 90
+      }
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.Network/azureFirewalls/{0}', 'AzFwFirewall')]",
+      "name": "AzureFW-diags",
+      "properties": {
+        "logAnalyticsDestinationType": "Dedicated",
+        "logs": [
+          {
+            "category": "AzureFirewallApplicationRule",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AzureFirewallNetworkRule",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AzureFirewallDnsProxy",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWNetworkRule",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWApplicationRule",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWNatRule",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWThreatIntel",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWIdpsSignature",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWDnsQuery",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWFqdnResolveFailure",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWFatFlow",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWFlowTrace",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWApplicationRuleAggregation",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWNetworkRuleAggregation",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          },
+          {
+            "category": "AZFWNatRuleAggregation",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          }
+        ],
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "enabled": true,
+            "retentionPolicy": {
+              "days": 90,
+              "enabled": true
+            }
+          }
+        ],
+        "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('loganalytics{0}', parameters('location')))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/azureFirewalls', 'AzFwFirewall')]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces', format('loganalytics{0}', parameters('location')))]"
+      ]
+    },
+    {
       "type": "Microsoft.Network/networkInterfaces",
       "apiVersion": "2022-11-01",
       "name": "webWinVM_nic",
@@ -651,11 +809,5 @@
         }
       }
     }
-  ],
-  "outputs": {
-    "AppGW_IP": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'appGW_PublicIpAddress'), '2022-11-01').ipAddress]"
-    }
-  }
+  ]
 }

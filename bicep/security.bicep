@@ -316,6 +316,158 @@ resource firewall1 'Microsoft.Network/azureFirewalls@2022-11-01' = {
   ]
 }
 
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
+  name: 'loganalytics${location}'
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 90
+  }
+}
+
+resource azfwDiags 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: 'AzureFW-diags'
+  scope: firewall1
+  properties: {
+    logAnalyticsDestinationType: 'Dedicated'
+    logs: [
+      {
+        category: 'AzureFirewallApplicationRule'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AzureFirewallNetworkRule'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AzureFirewallDnsProxy'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWNetworkRule'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWApplicationRule'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWNatRule'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWThreatIntel'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWIdpsSignature'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWDnsQuery'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWFqdnResolveFailure'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWFatFlow'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWFlowTrace'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWApplicationRuleAggregation'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWNetworkRuleAggregation'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'AZFWNatRuleAggregation'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+    ]
+    workspaceId: logAnalyticsWorkspace.id
+  }
+}
+
 /* Windows VM */
 resource webWinVM_netInterface 'Microsoft.Network/networkInterfaces@2022-11-01' = {
   name: 'webWinVM_nic'
@@ -581,5 +733,3 @@ resource AppGW_WAFPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFire
     }
   }
 }
-
-output AppGW_IP string = appGW_PublicIpAddress.properties.ipAddress
