@@ -393,7 +393,12 @@ resource webWinVM_IIS 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' 
     type: 'CustomScriptExtension'
     typeHandlerVersion: '1.4'
     settings: {
-      commandToExecute: 'powershell Add-WindowsFeature Web-Server -IncludeManagementTools; powershell Add-Content -Path "C:\\inetpub\\wwwroot\\Default.htm" -Value "$($env:computername)"; powershell Set-ExecutionPolicy Bypass -Scope Process -Force;  powershell -ExecutionPolicy Unrestricted (Invoke-Expression ((New-Object System.Net.WebClient).DownloadString(\'https://chocolatey.org/install.ps1\'))); choco install npcap -y --version="0.86.0"; choco install wireshark -y; choco install fiddler -y --install-arguments "/D=C:\\Program` Files\\fiddler"'
+      fileUris: [
+        'https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/scripts/install.ps1'
+      ]
+    }
+    protectedSettings: {
+      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File install.ps1'
     }
   }
 }

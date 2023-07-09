@@ -1,0 +1,655 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.18.4.5664",
+      "templateHash": "5770283561352475569"
+    }
+  },
+  "parameters": {
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Admin username for the servers"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for the admin account on the servers"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    }
+  },
+  "variables": {
+    "vmSize": "Standard_D2as_v5",
+    "secAddrSpace": "10.40.0.0/16",
+    "secAzFWSubnet": "10.40.0.0/24",
+    "secAppGWSubnet": "10.40.1.0/24",
+    "webAddrSpace": "10.41.0.0/16",
+    "webAppSubnet": "10.41.0.0/24",
+    "bastionSubnet": "10.41.1.0/24",
+    "defaultRoute": "0.0.0.0/0"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2022-11-01",
+      "name": "secHub",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('secAddrSpace')]"
+          ]
+        },
+        "enableDdosProtection": false,
+        "enableVmProtection": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2022-11-01",
+      "name": "[format('{0}/{1}', 'secHub', 'AzureFirewallSubnet')]",
+      "properties": {
+        "addressPrefix": "[variables('secAzFWSubnet')]",
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', 'secHub')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2022-11-01",
+      "name": "[format('{0}/{1}', 'secHub', 'AppGW')]",
+      "properties": {
+        "addressPrefix": "[variables('secAppGWSubnet')]",
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'secHub', 'AzureFirewallSubnet')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', 'secHub')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/routeTables",
+      "apiVersion": "2022-11-01",
+      "name": "toFW_RouteTable",
+      "location": "[parameters('location')]",
+      "properties": {
+        "disableBgpRoutePropagation": false,
+        "routes": [
+          {
+            "name": "to_vm",
+            "properties": {
+              "addressPrefix": "[variables('webAppSubnet')]",
+              "nextHopType": "VirtualAppliance",
+              "nextHopIpAddress": "[reference(resourceId('Microsoft.Network/azureFirewalls', 'AzFwFirewall'), '2022-11-01').ipConfigurations[0].properties.privateIPAddress]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/azureFirewalls', 'AzFwFirewall')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/routeTables",
+      "apiVersion": "2022-11-01",
+      "name": "fromWeb_RouteTable",
+      "location": "[parameters('location')]",
+      "properties": {
+        "disableBgpRoutePropagation": false,
+        "routes": [
+          {
+            "name": "to_fw",
+            "properties": {
+              "addressPrefix": "[variables('defaultRoute')]",
+              "nextHopType": "VirtualAppliance",
+              "nextHopIpAddress": "[reference(resourceId('Microsoft.Network/azureFirewalls', 'AzFwFirewall'), '2022-11-01').ipConfigurations[0].properties.privateIPAddress]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/azureFirewalls', 'AzFwFirewall')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2022-11-01",
+      "name": "web_Vnet",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('webAddrSpace')]"
+          ]
+        },
+        "enableDdosProtection": false,
+        "enableVmProtection": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2022-11-01",
+      "name": "[format('{0}/{1}', 'web_Vnet', 'app')]",
+      "properties": {
+        "addressPrefix": "[variables('webAppSubnet')]",
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', 'web_Vnet')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+      "apiVersion": "2022-11-01",
+      "name": "[format('{0}/{1}', 'secHub', 'secureHubTowebPeering')]",
+      "properties": {
+        "allowForwardedTraffic": false,
+        "allowGatewayTransit": false,
+        "remoteVirtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', 'web_Vnet')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/applicationGateways', 'AppGW')]",
+        "[resourceId('Microsoft.Network/bastionHosts', 'bastion')]",
+        "[resourceId('Microsoft.Network/azureFirewalls', 'AzFwFirewall')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', 'secHub')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', 'web_Vnet')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+      "apiVersion": "2022-07-01",
+      "name": "[format('{0}/{1}', 'web_Vnet', 'webPeeringTosecureHub')]",
+      "properties": {
+        "allowForwardedTraffic": false,
+        "allowGatewayTransit": false,
+        "remoteVirtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', 'secHub')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/applicationGateways', 'AppGW')]",
+        "[resourceId('Microsoft.Network/bastionHosts', 'bastion')]",
+        "[resourceId('Microsoft.Network/azureFirewalls', 'AzFwFirewall')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', 'secHub')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', 'web_Vnet')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2022-11-01",
+      "name": "[format('{0}/{1}', 'web_Vnet', 'AzureBastionSubnet')]",
+      "properties": {
+        "addressPrefix": "[variables('bastionSubnet')]",
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'web_Vnet', 'app')]",
+        "[resourceId('Microsoft.Network/virtualNetworks', 'web_Vnet')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/bastionHosts",
+      "apiVersion": "2022-11-01",
+      "name": "bastion",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "enableFileCopy": true,
+        "enableIpConnect": true,
+        "enableTunneling": true,
+        "ipConfigurations": [
+          {
+            "name": "IpConfig1",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'web_Vnet', 'AzureBastionSubnet')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'bastion-pip')]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', 'bastion-pip')]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'web_Vnet', 'AzureBastionSubnet')]",
+        "[resourceId('Microsoft.Compute/virtualMachines', 'webWinVM')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2022-01-01",
+      "name": "bastion-pip",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "publicIPAddressVersion": "IPv4"
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2022-11-01",
+      "name": "azfw_PublicIpAddress",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "publicIPAddressVersion": "IPv4"
+      }
+    },
+    {
+      "type": "Microsoft.Network/firewallPolicies",
+      "apiVersion": "2022-11-01",
+      "name": "AzfwPolicy1",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "tier": "Premium"
+        },
+        "threatIntelMode": "Alert",
+        "intrusionDetection": {
+          "mode": "Alert"
+        },
+        "dnsSettings": {
+          "enableProxy": true
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups",
+      "apiVersion": "2022-11-01",
+      "name": "[format('{0}/{1}', 'AzfwPolicy1', 'NetworkRuleCollectionGroup1')]",
+      "properties": {
+        "priority": 300,
+        "ruleCollections": [
+          {
+            "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+            "name": "NetworkRuleCollection",
+            "priority": 100,
+            "action": {
+              "type": "Allow"
+            },
+            "rules": [
+              {
+                "ruleType": "NetworkRule",
+                "name": "Allow-All",
+                "sourceAddresses": [
+                  "*"
+                ],
+                "destinationAddresses": [
+                  "*"
+                ],
+                "destinationPorts": [
+                  "*"
+                ],
+                "ipProtocols": [
+                  "Any"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/firewallPolicies', 'AzfwPolicy1')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/azureFirewalls",
+      "apiVersion": "2022-11-01",
+      "name": "AzFwFirewall",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "AZFW_VNet",
+          "tier": "Premium"
+        },
+        "hubIPAddresses": {
+          "publicIPs": {
+            "count": 1
+          }
+        },
+        "threatIntelMode": "Alert",
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'secHub', 'AzureFirewallSubnet')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'azfw_PublicIpAddress')]"
+              }
+            }
+          }
+        ],
+        "firewallPolicy": {
+          "id": "[resourceId('Microsoft.Network/firewallPolicies', 'AzfwPolicy1')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/applicationGateways', 'AppGW')]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', 'azfw_PublicIpAddress')]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'secHub', 'AzureFirewallSubnet')]",
+        "[resourceId('Microsoft.Network/firewallPolicies', 'AzfwPolicy1')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2022-11-01",
+      "name": "webWinVM_nic",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'web_Vnet', 'app')]"
+              },
+              "primary": true,
+              "privateIPAddressVersion": "IPv4"
+            }
+          }
+        ],
+        "enableAcceleratedNetworking": false,
+        "enableIPForwarding": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'web_Vnet', 'app')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "webWinVM",
+      "location": "[parameters('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('vmSize')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2022-Datacenter",
+            "version": "latest"
+          },
+          "osDisk": {
+            "osType": "Windows",
+            "createOption": "FromImage",
+            "caching": "ReadWrite",
+            "managedDisk": {
+              "storageAccountType": "StandardSSD_LRS"
+            },
+            "diskSizeGB": 127
+          }
+        },
+        "osProfile": {
+          "computerName": "webWinVM",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": true,
+            "enableAutomaticUpdates": true
+          },
+          "allowExtensionOperations": true
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', 'webWinVM_nic')]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', 'webWinVM_nic')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-03-01",
+      "name": "[format('{0}/{1}', 'webWinVM', 'webWinVM_IIS')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "autoUpgradeMinorVersion": true,
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.4",
+        "settings": {
+          "fileUris": [
+            "https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/scripts/install.ps1"
+          ]
+        },
+        "protectedSettings": {
+          "commandToExecute": "powershell -ExecutionPolicy Unrestricted -File install.ps1"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', 'webWinVM')]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2023-02-01",
+      "name": "[format('kvcerts{0}', uniqueString(resourceGroup().id))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "enableRbacAuthorization": false,
+        "enableSoftDelete": false,
+        "accessPolicies": [
+          {
+            "tenantId": "[tenant().tenantId]",
+            "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'kv_mgd_identity'), '2023-01-31').principalId]",
+            "permissions": {
+              "certificates": [
+                "Get",
+                "List",
+                "Create",
+                "Import",
+                "Update",
+                "Delete",
+                "Recover",
+                "Backup",
+                "Restore"
+              ],
+              "secrets": [
+                "Get"
+              ]
+            }
+          }
+        ],
+        "tenantId": "[tenant().tenantId]",
+        "sku": {
+          "name": "standard",
+          "family": "A"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'kv_mgd_identity')]"
+      ]
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "kv_mgd_identity",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2022-11-01",
+      "name": "appGW_PublicIpAddress",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "publicIPAddressVersion": "IPv4"
+      }
+    },
+    {
+      "type": "Microsoft.Network/applicationGateways",
+      "apiVersion": "2022-11-01",
+      "name": "AppGW",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "WAF_v2",
+          "tier": "WAF_v2",
+          "capacity": 2
+        },
+        "gatewayIPConfigurations": [
+          {
+            "name": "appGatewayIpConfig",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'secHub', 'AppGW')]"
+              }
+            }
+          }
+        ],
+        "frontendIPConfigurations": [
+          {
+            "name": "appGwPublicFrontendIp",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'appGW_PublicIpAddress')]"
+              }
+            }
+          }
+        ],
+        "frontendPorts": [
+          {
+            "name": "http",
+            "properties": {
+              "port": 80
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "BackendPool01",
+            "properties": {
+              "backendAddresses": [
+                {
+                  "ipAddress": "[reference(resourceId('Microsoft.Network/networkInterfaces', 'webWinVM_nic'), '2022-11-01').ipConfigurations[0].properties.privateIPAddress]"
+                }
+              ]
+            }
+          }
+        ],
+        "backendHttpSettingsCollection": [
+          {
+            "name": "HTTPSetting01",
+            "properties": {
+              "port": 80,
+              "protocol": "Http",
+              "cookieBasedAffinity": "Disabled",
+              "pickHostNameFromBackendAddress": false,
+              "requestTimeout": 20
+            }
+          }
+        ],
+        "httpListeners": [
+          {
+            "name": "HTTPListener01",
+            "properties": {
+              "firewallPolicy": {
+                "id": "[resourceId('Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies', 'AppGW_WAFPolicy')]"
+              },
+              "frontendIPConfiguration": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', 'AppGW', 'appGwPublicFrontendIp')]"
+              },
+              "frontendPort": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts', 'AppGW', 'http')]"
+              },
+              "protocol": "Http",
+              "requireServerNameIndication": false
+            }
+          }
+        ],
+        "requestRoutingRules": [
+          {
+            "name": "HTTPRoutingRule01",
+            "properties": {
+              "ruleType": "Basic",
+              "priority": 10,
+              "httpListener": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', 'AppGW', 'HTTPListener01')]"
+              },
+              "backendAddressPool": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', 'AppGW', 'BackendPool01')]"
+              },
+              "backendHttpSettings": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', 'AppGW', 'HTTPSetting01')]"
+              }
+            }
+          }
+        ],
+        "enableHttp2": false,
+        "firewallPolicy": {
+          "id": "[resourceId('Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies', 'AppGW_WAFPolicy')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', 'appGW_PublicIpAddress')]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'secHub', 'AppGW')]",
+        "[resourceId('Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies', 'AppGW_WAFPolicy')]",
+        "[resourceId('Microsoft.Network/networkInterfaces', 'webWinVM_nic')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies",
+      "apiVersion": "2022-11-01",
+      "name": "AppGW_WAFPolicy",
+      "location": "[parameters('location')]",
+      "properties": {
+        "policySettings": {
+          "requestBodyCheck": true,
+          "maxRequestBodySizeInKb": 128,
+          "fileUploadLimitInMb": 100,
+          "state": "Enabled",
+          "mode": "Prevention"
+        },
+        "managedRules": {
+          "managedRuleSets": [
+            {
+              "ruleSetType": "OWASP",
+              "ruleSetVersion": "3.1"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
