@@ -581,3 +581,5 @@ resource AppGW_WAFPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFire
     }
   }
 }
+
+output AppGW_IP string = appGW_PublicIpAddress.properties.ipAddress
