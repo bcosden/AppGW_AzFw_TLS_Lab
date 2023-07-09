@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "3602528820724541362"
+      "templateHash": "8923547548113466351"
     }
   },
   "parameters": {
@@ -809,5 +809,15 @@
         }
       }
     }
-  ]
+  ],
+  "outputs": {
+    "AppGW_PublicIPAddress": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'appGW_PublicIpAddress'), '2022-11-01').ipAddress]"
+    },
+    "Url": {
+      "type": "string",
+      "value": "[format('http://{0}/cgi-bin/env.pl', reference(resourceId('Microsoft.Network/publicIPAddresses', 'appGW_PublicIpAddress'), '2022-11-01').ipAddress)]"
+    }
+  }
 }

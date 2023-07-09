@@ -733,3 +733,6 @@ resource AppGW_WAFPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFire
     }
   }
 }
+
+output AppGW_PublicIPAddress string = appGW_PublicIpAddress.properties.ipAddress
+output Url string = 'http://${appGW_PublicIpAddress.properties.ipAddress}/cgi-bin/env.pl'
