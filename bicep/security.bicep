@@ -24,7 +24,6 @@ var secAppGWSubnet = '10.40.1.0/24'
 var webAddrSpace = '10.41.0.0/16'
 var webAppSubnet = '10.41.0.0/24'
 var bastionSubnet = '10.41.1.0/24'
-var defaultRoute = '0.0.0.0/0'
 
 /**************/
 /* RESOURCES */
@@ -94,7 +93,7 @@ resource fromWeb_RouteTable 'Microsoft.Network/routeTables@2022-11-01' = {
       {
         name: 'to_fw'
         properties: {
-          addressPrefix: defaultRoute
+          addressPrefix: secAppGWSubnet
           nextHopType: 'VirtualAppliance'
           nextHopIpAddress: firewall1.properties.ipConfigurations[0].properties.privateIPAddress
         }

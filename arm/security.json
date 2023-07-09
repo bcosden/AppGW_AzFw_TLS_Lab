@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.18.4.5664",
-      "templateHash": "8923547548113466351"
+      "templateHash": "5131666627004019394"
     }
   },
   "parameters": {
@@ -36,8 +36,7 @@
     "secAppGWSubnet": "10.40.1.0/24",
     "webAddrSpace": "10.41.0.0/16",
     "webAppSubnet": "10.41.0.0/24",
-    "bastionSubnet": "10.41.1.0/24",
-    "defaultRoute": "0.0.0.0/0"
+    "bastionSubnet": "10.41.1.0/24"
   },
   "resources": [
     {
@@ -115,7 +114,7 @@
           {
             "name": "to_fw",
             "properties": {
-              "addressPrefix": "[variables('defaultRoute')]",
+              "addressPrefix": "[variables('secAppGWSubnet')]",
               "nextHopType": "VirtualAppliance",
               "nextHopIpAddress": "[reference(resourceId('Microsoft.Network/azureFirewalls', 'AzFwFirewall'), '2022-11-01').ipConfigurations[0].properties.privateIPAddress]"
             }

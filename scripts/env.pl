@@ -17,8 +17,11 @@
 ##
 use strict;
 use warnings;
+use DateTime;
 
 print "Content-type: text/plain; charset=iso-8859-1\n\n";
+my $datetime = DateTime->now;
+print "Timestamp: $datetime\n\n";
 foreach my $var (sort(keys(%ENV))) {
     my $val = $ENV{$var};
     $val =~ s|\n|\\n|g;
