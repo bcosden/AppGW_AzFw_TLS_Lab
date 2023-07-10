@@ -316,7 +316,7 @@ resource firewall1 'Microsoft.Network/azureFirewalls@2022-11-01' = {
 }
 
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
-  name: 'loganalytics${location}'
+  name: 'loganalytics${location}${uniqueString(resourceGroup().id)}'
   location: location
   properties: {
     sku: {
