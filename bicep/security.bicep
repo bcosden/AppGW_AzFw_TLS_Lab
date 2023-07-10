@@ -326,6 +326,42 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10
   }
 }
 
+resource AppGwDiags 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: 'AppGW-diags'
+  scope: AppGateway
+  properties: {
+    logs: [
+      {
+        category: 'ApplicationGatewayAccessLog'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+      {
+        category: 'ApplicationGatewayFirewallLog'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+        retentionPolicy: {
+          days: 90
+          enabled: true
+        }
+      }
+    ]
+    workspaceId: logAnalyticsWorkspace.id
+  }
+}
+
 resource azfwDiags 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'AzureFW-diags'
   scope: firewall1
