@@ -21,7 +21,8 @@ Scope:
 4. The Web VM has tools installed for examining the flow: Wireshark and Fiddler.
 
 
-![[appgw-azfw-architecture.png]]
+![topology](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-architecture.png)
+
 
 Required:
 1. Public DNS Domain in which you can control A records
@@ -48,7 +49,9 @@ In this lab, I am using Digicert Geotrust TLS certificate. You can use a self-si
 
 1. With Digicert they make it easy to get your certificate, intermediate and root certificate. Download these from your certificate issuer:
 
-![[appgw-azfw-digicerts.png]]
+
+![Digicert](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-digicerts.png)
+
 
 2. Combine the certificate and intermediate certificate PEM files into one file. Note that the certificate should come first and then the intermediate certificate:
 
@@ -122,26 +125,35 @@ NOTE: we are not going to send traffic through the Azure Firewall just yet. Let'
 
 We already have an http listener on port 80, we now need a listener on port 443. Once you set HTTPS, you will need to upload a certificate in pfx format. This was created earlier. You can also use KeyVault to store the certificate and load it here from KeyVault. Note the PFX file requires a password.
 
-![[appgw-azfw-addhttps-listener.png]]
+
+![Listener](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-addhttps-listener.png)
+
 
 Once you click add, the Application Gateway will update and you will have two listeners as pictured below.
 
-![[appgw-azfw-https-listener.png]]
+![Listener Summary)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-https-listener.png)
+
 
 2. Add the Backend settings on port 443 and using HTTPS. Instead of using well known CAa, select No. With Digicert the well known CA would work by validating the key over the internet, but we will also need to add the Azure Firewall Root CA here which will invalidate the well known CA setting. So at this step add your root CA in CER format (created in an earlier step).
 
-![[appgw-azfw-addbackend-setting.png]]
+
+![besetting](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-addbackend-setting.png)
 
 
 3. Add a routing rule for HTTPS (see below examples)
 
-![[appgw-azfw-addrouting-rule.png]]
 
-![[appgw-azfw-addbackend-target.png]]
+![routing rule)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-addrouting-rule.png)
+
+
+![betarget](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-addbackend-target.png)
+
 
 4. Update your DNS provider so that you have a FQDN which is valid against the certificate CN name. So for example if your certificate CN=*.saros.io, which is a wildcard for all sub-domains under saros.io, then you need a DNS entry setting a sub-domain to create the FQDN. In this case, I am using CloudFlare and set APP as the sub-domain. So the FQDN is app.saros.io which matches the CN of the certificate I have which is CN=*saros.io.
 
-![[appgw-azfw-cloudflare-dns.png]]
+
+![cloudflare)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-cloudflare-dns.png)
+
 
 5. At this point you should be able to test end to end TLS from Application Gateway to the Web Server. Using your URL in place of my specific example go to:
 
@@ -149,7 +161,9 @@ Once you click add, the Application Gateway will update and you will have two li
 
 and check the certificate details in the browser to ensure you are using your certificate.
 
-![[appgw-azfw-check-browser-cert.png]]
+
+![browser cert)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-check-browser-cert.png)
+
 
 You should also have a list of all the HTTPS headers on the web page. Here is an example list. Note that I have masked the X-Forwarded-For for my IP address.
 
@@ -198,7 +212,7 @@ Note we have not introduced the firewall yet or any custom routing. It is purely
 
 Also note that the back end is healthy without an explicit probe set. Its not required since the backend pool per the deployment is set to the IP address of the backend Web Server. Since that IP is directly routable to the web server and the listener knows which back end port we are accessing, the health probe can figure out by itself whether the back end is healthy or not.
 
-![[appgw-azfw-appgw-backend-health.png]]
+![behealth)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-appgw-backend-health.png)
 
 So the routing is very simple. In the server variables you can see the tuples here:
 REMOTE_ADDR="10.40.1.6"
@@ -230,7 +244,9 @@ So let's assign some UDR's and see the results.
 1. First assign: To_FW route table and associate with the Application Gateway subnet
 2. Second assign: From_Web and associate with Web Server subnet
 
-![[appgw-azfw-rt-fromweb-association.png]]
+
+![route table)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-rt-fromweb-association.png)
+
 
 Now with the bi-directional UDR's traffic will flow symmetrically. Another option, we will see later on is SNAT. With SNAT do we still need the UDR?
 
@@ -246,7 +262,7 @@ AZFWNetworkRule
 | order by TimeGenerated
 
 
-![[appgw-azfw-certs-azgw-networklogs.png]]
+![network logs)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-certs-azgw-networklogs.png)
 
 
 #### Step 7 - Packet Walk 2
@@ -259,7 +275,8 @@ Set a Wireshark Filter as below and start the capture. And then access the Web S
 
 ip.addr == 10.40.1.0/24 && ip.dst_host == 10.41.0.4
 
-![[appgw-azgw-certs-wireshark-capture1.png]]
+![wireshark)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azgw-certs-wireshark-capture1.png)
+
 
 Here you can see the same results as we saw with the environment variables in the first packet walk. The VM see's the ephemeral private IP of the Application Gateway.
 
@@ -269,7 +286,8 @@ Here you can see the same results as we saw with the environment variables in th
 Now we are going to turn on TLS in Azure Firewall and then configure the Application Gateway to work with Azure Firewall.  This article provides a good overview of the certificates required to make this happen:
 [Zero-trust network for web applications with Azure Firewall and Application Gateway](https://learn.microsoft.com/en-us/azure/architecture/example-scenario/gateway/application-gateway-before-azure-firewall?utm_source=pocket_saves#azure-firewall-premium-and-name-resolution)
 
-![[application-gateway-before-azure-firewall-certificates.png]]
+![certchain)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/application-gateway-before-azure-firewall-certificates.png)
+
 
 Here you can see that Application Gateway needs the public cert with the publicly signed CA. But the Application Gateway also requires the signed CA from the Firewall (which in this case will be a self signed cert). The Azure Firewall will have a self signed CN based on the same CN of the public cert in the Application Gateway. And finally the back end Web VM will have the same public CN and publicly signed CA as the front end of the Application Gateway. The Application Gateway will see the Firewall certificate as valid since the Application Gateway has a signed root certificate for the intermediate certificate in the Azure Firewall. So the Application Gateway back end process trusts the Azure Firewall. The traffic is re-encrypted with the firewall intermediate certificate that is provided to the Application Gateway. The Firewall will receive the encrypted traffic, decrypt it and pass it through the IDPS engine to look for signature hits against the header and body and log or block that traffic based on the IDPS setting. If the traffic is not blocked, it is re-encrypted with the Web servers certificate. When the traffic is received by the Web Server, it is decrypted and processed by the back end server. 
 
@@ -340,7 +358,8 @@ openssl pkcs12 -export -out interCA.pfx -inkey interCA.key -in interCA.crt -pass
 
 The following certificate files will be generated:
 
-![[appgw-azfw-cacerts-selfsigned.png]]
+![cert dir](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-cacerts-selfsigned.png)
+
 
 The necessary file at this step is:
 interCA.pfx which will go to Keyvault Certificates. And will be consumed by Azure Firewall TLS Inspection.
@@ -349,25 +368,31 @@ NOTE: The managed identity necessary for the Azure Firewall to consume the certi
 
 So under Access Policies in the Key Vault, please add your identity manually in Access Policies
 
-![[appgw-azfw-kv-access-user.png]]
+
+![kv user)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-kv-access-user.png)
+
 
 With the following settings:
 
-![[appgw-azfw-kv-access-policy.png]]
+
+![kv policy)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-kv-access-policy.png)
 
 
 3. Import the certificate created above into the Key Vault. This must be the pfx file that was generated above.
 
-![[appgw-azfw-kv-import-cacert.png]]
+
+![createcacert)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-kv-import-cacert.png)
+
 
 Once imported, click on the certificate and you should see the certificate information at the bottom. The CN should match the Application Gateway front end CN.
 
-![[appgw-azfw-kv-download-cer.png]]
+
+![kv download)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-kv-download-cer.png)
 
 
 4. Now that the certificate is installed in the KeyVault, we can add the certificate to the Azure Firewall TLS Inspection.
 
-![[appgw-azfw-policy-tls-enable.png]]
+![tls enable](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-policy-tls-enable.png)
 
 
 #### Step 9 - Update Application Gateway Settings
@@ -379,24 +404,30 @@ If you look at your Application Gateway at this point the back end is unhealthy.
 
 ok, I get it, it is confusing. The front end is app.saros.io and the backend is web.saros.io. It should be the other way around. Well, it depends on perspective. In this case app means Application Gateway and web means Web Server. That is my story and I am sticking to it ;)
 
-![[appgw-azfw-pdns-privatezone.png]]
+![private zone)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-pdns-privatezone.png)
+
 
 3. Then we link the DNS private zone to the Virtual Networks in which it needs to be resolved. In this case the Application Gateway and Firewall Virtual Network.
 
 Wait, what about the web-Vnet, does that need to resolve itself? Maybe, you could create a link to the web Vnet as well. But in this lab we are going to use the Azure Firewall DNS proxy. So the Web Server will resolve any FQDN's required via the Azure Firewall.
 
 
-![[appgw-azfw-pdns-vnetlinks.png]]
+![pdns)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-pdns-vnetlinks.png)
+
 
 Let's fix that now while we are at it.
 
 So in the Azure Firewall DNS settings you can see the deployment already set the DNS proxy settings. The proxy is not required, but set here just as an exercise. However enabling DNS and using Azure Default DNS is required. You will not be able to set FQDN's in Azure Firewall Application Rules without this setting.
 
-![[appgw-azfw-azfw-dnsproxy.png]]
+
+![dns proxy)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-azfw-dnsproxy.png)
+
 
 4. But in the web-Vnet -> DNS server settings, let's change the DNS servers to use the Azure Firewall private IP address for resolution.
 
-![[appgw-azfw-webvnet-dnsproxy.png]]
+
+![dns proxy)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-webvnet-dnsproxy.png)
+
 
 Ok now, let's get back to the Application Gateway settings.
 
@@ -410,13 +441,16 @@ openssl x509 -inform PEM -in .\rootCA.crt -outform DER -out rootCA.cer
 
 Now, in the previous screen in Application Gateway, where you added the Digicert CA in the backend settings, you will now add another certificate by clicking on the add certificate button. Then add your rootCA.cer file here. And save.
 
-![[appgw-azfw-appgw-backend-selfsigned-rootca.png]]
+
+![appgw ca cert](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-appgw-backend-selfsigned-rootca.png)
+
 
 6. Override the host name
 
 We are going to pick from the back end target, because we are going to update the backend target to a FQDN in the next step.
 
-![[appgw-azfw-appgw-backend-hostname-frombe.png]]
+![from be)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-appgw-backend-hostname-frombe.png)
+
 
 and click save
 
@@ -424,7 +458,7 @@ and click save
 
 Go back to back end pool settings in Application Gateway and change the IP address to the FQDN of the host plus private DNS zone you created.
 
-![[appgw-azfw-appgw-backend-pool-fqdn.png]]
+![be fqdn)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-appgw-backend-pool-fqdn.png)
 
 and save.
 
@@ -436,11 +470,12 @@ Currently, we have an Allow-All network rule. But we need an allow rule in the n
 
 1. So let's change the Allow-All rule to the following:
 
-![[appgw-azfw-azfw-networkrules-httponly.png]]
 
+![netrules)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-azfw-networkrules-httponly.png)
 2. And now let's add an application rule. Now we will specify the FQDN and that TLS Inspection is required for port 443. Enter the application rule as follows:
 
-![[appgw-azfw-azfw-apprules-httpsonly.png]]
+
+![apprules)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-azfw-apprules-httpsonly.png)
 
 Once the firewall rules complete, after a few minutes, the Application Gateway backend should be healthy. And you should be able to access the Web Server via port 80 or port 443. And after a few more minutes, you should start seeing data in the Firewall Logs.
 
@@ -453,14 +488,17 @@ In the Application Rule you will see the source of the Application Gateway ephem
 AZFWApplicationRule
 | order by TimeGenerated
 
-![[appgw-azfw-azfw-logs-application-tls.png]]
+
+![app rules tls)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-azfw-logs-application-tls.png)
+
 
 The network rule log does not specify inspection. But you can verify it is being inspected in the IDPS Log data. Once IDPS data is generated against the web site. You can simulate an attack yourself or just wait a few days and the Internet will do its thing.
 
 AZFWNetworkRule
 | order by TimeGenerated
 
-![[appgw-azfw-afw-logs-netruleport80.png]]
+
+![netrule)](https://raw.githubusercontent.com/bcosden/AppGW_AzFw_TLS_Lab/master/assets/appgw-azfw-afw-logs-netruleport80.png)
 
 
 #### Step 11 - Packet Walk 3
